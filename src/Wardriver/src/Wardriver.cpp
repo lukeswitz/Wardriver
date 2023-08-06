@@ -1,3 +1,4 @@
+#include "HardwareSerial.h"
 #include "Arduino.h"
 #include "Wardriver.h"
 #include "Recon.h"
@@ -6,6 +7,8 @@
 #include <TinyGPSPlus.h>
 #include "../Vars.h"
 #include "Filesys.h"
+
+const int MAX_MACS = 100;
 
 #if defined(ESP8266)
     #include <SoftwareSerial.h>
@@ -17,7 +20,7 @@ TinyGPSPlus gps;
 // CURRENT GPS & DATTIME STRING
 float lat = 0; float lng = 0;
 int alt; double hdop;
-char strDateTime[15];
+char strDateTime[20];
 char currentGPS[17];
 
 // RECON PARAMS
@@ -60,7 +63,7 @@ void updateGPS() {
     mn = gps.time.minute();
     sc = gps.time.second();
 
-    sprintf(strDateTime,"%i-%i-%i %i:%i:%i",yr,mt,dy,hr,mn,sc);
+    sprintf(strDateTime,"%04d-%02d-%02d %02d:%02d:%02d",yr,mt,dy,hr,mn,sc);
     sprintf(currentGPS,"%1.3f,%1.3f",lat,lng);
     sprintf(currTime,"%02d:%02d",hr,mn);
 
@@ -106,8 +109,8 @@ void initGPS() {
         Serial.println(gps.location.isValid());
         delay(0); smartDelay(500);
     }
-    while (! (gps.date.year() == 2000)) {
-        Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: Waiting for time...");
+    while (!(gps.date.year() == 2023) && hdop > 50) {
+        Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: Calibrating...");
         delay(0); smartDelay(500);
     }
     Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: LOCATION FOUND");
@@ -126,33 +129,57 @@ void initGPS(uint8_t override) {
     Screen::drawMockup(currentGPS,currTime,sats,totalNets,openNets,clients,bat,speed,"GPS: LOCATION FOUND");
 }
 
+bool isSSIDSeen(String ssid, String ssidBuffer[], int &ssidIndex) {
+    for (int j = 0; j < ssidIndex; j++) {
+        if (ssidBuffer[j] == ssid) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void scanNets() {
-    char entry[150]; 
-    Serial.println("[ ] Scanning WiFi networks...");
-    Screen::drawMockup(currentGPS,currTime,sats,totalNets,openNets,clients,bat,speed,"WiFi: Scanning...");
+    char entry[150];
+    char message[21];
+    
+    // Buffer and index for SSIDs
+    static String ssidBuffer[MAX_MACS];  // Made static
+    static int ssidIndex = 0;            // Made static
+    int newNets = 0;
+
+    //Serial.println("[ ] Scanning WiFi networks...");
+    Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, "WiFi: Scanning...");
 
     int n = WiFi.scanNetworks();
     openNets = 0;
 
     Filesys::open();
-    
+
     for (int i = 0; i < n; ++i) {
-        char* authType = getAuthType(WiFi.encryptionType(i));
-        #if defined(ESP8266)
-            if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
-        #elif defined(ESP32)
-            if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
-        #endif
+        String ssid = WiFi.SSID(i);
 
-        sprintf(entry,"%s,%s,%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), WiFi.SSID(i).c_str(),authType,strDateTime,WiFi.channel(i),WiFi.RSSI(i),lat,lng,alt,hdop);
-        Serial.println(entry);
-        Filesys::write(entry);
+        if (!isSSIDSeen(ssid, ssidBuffer, ssidIndex)) {
+            ssidBuffer[ssidIndex++] = ssid;
+            if (ssidIndex == MAX_MACS) ssidIndex = 0;  // Reset index if it reaches MAX_MACS
+
+            char* authType = getAuthType(WiFi.encryptionType(i));
+            #if defined(ESP8266)
+                if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
+            #elif defined(ESP32)
+                if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
+            #endif
+
+            sprintf(entry, "%s,%s,%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
+            Serial.println(entry);
+            Filesys::write(entry);
+            
+            newNets++;
+        }
     }
-    totalNets+=n;
+    totalNets += newNets;
 
-    char message[21];
-    sprintf(message,"Logged %d networks.",n);
-    Screen::drawMockup(currentGPS,currTime,sats,totalNets,openNets,clients,bat,speed,message);
+    sprintf(message, "Logged %d networks.", newNets);
+    Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
 
     Filesys::close();
     WiFi.scanDelete();
