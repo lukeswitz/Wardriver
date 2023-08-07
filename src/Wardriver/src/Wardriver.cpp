@@ -8,7 +8,7 @@
 #include "../Vars.h"
 #include "Filesys.h"
 
-const int MAX_MACS = 100;
+const int MAX_MACS = 300;
 
 #if defined(ESP8266)
     #include <SoftwareSerial.h>
@@ -34,7 +34,7 @@ uint8_t  speed = 0;
 // CURRENT DATETIME
 uint8_t hr; uint8_t mn; uint8_t sc;
 uint16_t yr; uint8_t mt; uint8_t dy;
-char currTime[6];
+char currTime[9];
 
 Wardriver::Wardriver() {
 
@@ -143,8 +143,8 @@ void scanNets() {
     char message[21];
     
     // Buffer and index for SSIDs
-    static String ssidBuffer[MAX_MACS];  // Made static
-    static int ssidIndex = 0;            // Made static
+    static String ssidBuffer[MAX_MACS];
+    static int ssidIndex = 0;
     int newNets = 0;
 
     //Serial.println("[ ] Scanning WiFi networks...");
@@ -163,23 +163,25 @@ void scanNets() {
             if (ssidIndex == MAX_MACS) ssidIndex = 0;  // Reset index if it reaches MAX_MACS
 
             char* authType = getAuthType(WiFi.encryptionType(i));
-            #if defined(ESP8266)
-                if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
-            #elif defined(ESP32)
-                if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
-            #endif
+            if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
+            
+            //add to global vars
+            // #if defined(ESP8266)
+            //     if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
+            // #elif defined(ESP32)
+            //     if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
+            // #endif
 
             sprintf(entry, "%s,%s,%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
-            Serial.println(entry);
+            //Serial.println(entry); 
             Filesys::write(entry);
-            
             newNets++;
         }
     }
     totalNets += newNets;
 
-    sprintf(message, "Logged %d networks.", newNets);
-    Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
+    //sprintf(message, "Logged %d networks.", newNets);
+    //Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
 
     Filesys::close();
     WiFi.scanDelete();
@@ -209,7 +211,7 @@ void Wardriver::updateScreen(char* message) {
 
 void Wardriver::scan() {
     updateGPS(); // poll current GPS coordinates
-    getBattery();
+  //  getBattery();
     scanNets(); // scan WiFi nets
     smartDelay(500);
 }
