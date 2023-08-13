@@ -8,7 +8,10 @@
 #include "../Vars.h"
 #include "Filesys.h"
 
-const int MAX_MACS = 300;
+const int MAX_MACS = 30;
+const int MAX_ENTRY_SIZE = 250;
+char ssidBuffer[MAX_MACS][MAX_ENTRY_SIZE];
+int ssidIndex = 0;
 
 #if defined(ESP8266)
     #include <SoftwareSerial.h>
@@ -49,7 +52,8 @@ static void smartDelay(unsigned long ms) {
 }
 
 void updateGPS() {
-    lat = gps.location.lat(); lng = gps.location.lng();
+    lat = gps.location.lat(); 
+    lng = gps.location.lng();
     alt = (int) gps.altitude.meters();
     hdop = gps.hdop.hdop();
     sats = gps.satellites.value();
@@ -67,22 +71,23 @@ void updateGPS() {
     sprintf(currentGPS,"%1.3f,%1.3f",lat,lng);
     sprintf(currTime,"%02d:%02d",hr,mn);
 
-    Screen::drawMockup(currentGPS,currTime,sats,totalNets,openNets,clients,bat,speed,"GPS: UPDATED");
+   // Screen::drawMockup(currentGPS,currTime,sats,totalNets,openNets,clients,bat,speed,"GPS: UPDATED");
 }
 
 void updateGPS(uint8_t override) {
-    lat = 37.8715, 122.2730; lng = 122.2730;
+    lat = 35.8715; 
+    lng = -105.2730;
     alt = 220; hdop = 1.5;
     sats = 3; speed = 69;
 
-    yr = 2023; mt = 7; dy = 25;
+    yr = 2023; mt = 8; dy = 11;
     hr = 10; mn = 36; sc = 56;
 
-    sprintf(strDateTime,"%i-%i-%i %i:%i:%i",yr,mt,dy,hr,mn,sc);
+    sprintf(strDateTime,"%04d-%02d-%02d %02d:%02d:%02d",yr,mt,dy,hr,mn,sc);
     sprintf(currentGPS,"%1.3f,%1.3f",lat,lng);
     sprintf(currTime,"%02d:%02d",hr,mn);
 
-    Screen::drawMockup(currentGPS,currTime,sats,totalNets,openNets,clients,bat,speed,"GPS: UPDATED");
+  //  Screen::drawMockup(currentGPS,currTime,sats,totalNets,openNets,clients,bat,speed,"GPS: UPDATED");
 }
 
 // initialize GPS & get first coords
@@ -109,7 +114,7 @@ void initGPS() {
         Serial.println(gps.location.isValid());
         delay(0); smartDelay(500);
     }
-    while (!(gps.date.year() == 2023) && hdop > 50) {
+    while (!(gps.date.year() == 2023) && hdop > 20) {
         Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: Calibrating...");
         delay(0); smartDelay(500);
     }
@@ -128,10 +133,15 @@ void initGPS(uint8_t override) {
     updateGPS(0);
     Screen::drawMockup(currentGPS,currTime,sats,totalNets,openNets,clients,bat,speed,"GPS: LOCATION FOUND");
 }
+void addSSID(const char* ssid) {
+    strncpy(ssidBuffer[ssidIndex % MAX_MACS], ssid, MAX_ENTRY_SIZE - 1);
+    ssidBuffer[ssidIndex % MAX_MACS][MAX_ENTRY_SIZE - 1] = '\0';
+    ssidIndex++;
+}
 
-bool isSSIDSeen(String ssid, String ssidBuffer[], int &ssidIndex) {
-    for (int j = 0; j < ssidIndex; j++) {
-        if (ssidBuffer[j] == ssid) {
+bool isSSIDSeen(const char* ssid) {
+    for (int j = 0; j < MAX_MACS; j++) {
+        if (strncmp(ssidBuffer[j], ssid, MAX_ENTRY_SIZE) == 0) {
             return true;
         }
     }
@@ -139,50 +149,46 @@ bool isSSIDSeen(String ssid, String ssidBuffer[], int &ssidIndex) {
 }
 
 void scanNets() {
-    char entry[150];
-    char message[21];
+    char entry[250];
+    char message[30];
     
     // Buffer and index for SSIDs
     static String ssidBuffer[MAX_MACS];
     static int ssidIndex = 0;
     int newNets = 0;
-
+    
+    Filesys::open();
+    
     //Serial.println("[ ] Scanning WiFi networks...");
     Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, "WiFi: Scanning...");
 
     int n = WiFi.scanNetworks();
-    openNets = 0;
-
-    Filesys::open();
+    //openNets = 0; //TOFIX: SHOW TOTAL NOT THE CURRENT OPEN FOR NOW
 
     for (int i = 0; i < n; ++i) {
         String ssid = WiFi.SSID(i);
+        int entryLength = ssid.length() + MAX_ENTRY_SIZE;
+        char entry[entryLength];
 
-        if (!isSSIDSeen(ssid, ssidBuffer, ssidIndex)) {
-            ssidBuffer[ssidIndex++] = ssid;
-            if (ssidIndex == MAX_MACS) ssidIndex = 0;  // Reset index if it reaches MAX_MACS
-
+        if (!isSSIDSeen(ssid.c_str())) {
+            addSSID(ssid.c_str());
             char* authType = getAuthType(WiFi.encryptionType(i));
-            if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
-            
-            //add to global vars
-            // #if defined(ESP8266)
-            //     if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
-            // #elif defined(ESP32)
-            //     if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
-            // #endif
-
-            sprintf(entry, "%s,%s,%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
-            //Serial.println(entry); 
-            Filesys::write(entry);
+            #if defined(ESP8266)
+                if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
+            #elif defined(ESP32)
+                if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
+            #endif
+            snprintf(entry, sizeof(entry), "%s,%s,%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
             newNets++;
+            Filesys::write(entry);
+            Serial.println(entry); 
         }
     }
+    
+    // sprintf(message, "Logged %d networks.", newNets);
+    // Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
+
     totalNets += newNets;
-
-    //sprintf(message, "Logged %d networks.", newNets);
-    //Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
-
     Filesys::close();
     WiFi.scanDelete();
 }
