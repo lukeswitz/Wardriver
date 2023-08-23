@@ -67,20 +67,22 @@ Your device will appear as something like `ttyUSB0` or `ttyACM0`.
 Erase the flash:
 
 ```bash
-esptool --chip esp32 -p /dev/<your_serial_port> erase_flash
+esptool --chip auto -p /dev/<your_serial_port> erase_flash
 ```
 
 Replace `esp32` with `esp8266` if you're using ESP8266 board.
 
 ### Step 3: Flashing 
+Decide what image you want to flash :
+- Official Stable: `Wardriver/Wardriver.ino`
+- Official Beta: `./build/v1.0-beta-WarDriver.bin`
+- lukeswitz Beta: `build/esp8266.esp8266.d1_mini_pro/Wardriver.bin`
 
 Run the following command to flash the firmware to your board:
 
-```bash
-esptool --chip esp32 -p /dev/<your_serial_port> write_flash -z 0x0 ./Wardriver/Wardriver.ino.bin
-```
+`esptool --chip auto -p <SERIAL_PORT> write_flash -z 0x0 <binary>.bin`
 
-Replace `esp32` with `esp8266` if you're using ESP8266 board.
+Replace `<binary>.bin` by dragging the file into the terminal or by manually specifying from the above paths. 
 
 ## Listing All Supported Boards
 
