@@ -70,8 +70,6 @@ Erase the flash:
 esptool --chip auto -p /dev/<your_serial_port> erase_flash
 ```
 
-Replace `esp32` with `esp8266` if you're using ESP8266 board.
-
 ### Step 3: Flashing 
 Decide what image you want to flash :
 - Official Stable: `Wardriver/Wardriver.ino`
