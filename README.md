@@ -22,7 +22,7 @@ Basic wardriving for the ESP8266 & ESP32, compatible with WiGLE. This guide will
 1. Clone this repository to your local machine.
 
 ```bash
-git clone https://github.com/LyndLabs/Wardriver.git
+git clone https://github.com/lukeswitz/Wardriver.git
 cd Wardriver/src
 ```
 
