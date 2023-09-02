@@ -72,9 +72,8 @@ esptool --chip auto -p /dev/<your_serial_port> erase_flash
 
 ### Step 3: Flashing 
 Decide what image you want to flash :
-- Official Stable: `Wardriver/Wardriver.ino`
-- Official Beta: `./build/v1.0-beta-WarDriver.bin`
-- lukeswitz Beta: `build/esp8266.esp8266.d1_mini_pro/Wardriver.bin`
+- Official Beta: `/build/v1.0-beta-WarDriver.bin`
+- This fork: `build/v1.0-alpha-WarDriver.bin`
 
 Run the following command to flash the firmware to your board:
 
