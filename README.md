@@ -72,8 +72,8 @@ esptool --chip auto -p /dev/<your_serial_port> erase_flash
 
 ### Step 3: Flashing 
 Decide what image you want to flash :
-- Official Beta: `/build/v1.0-beta-WarDriver.bin`
-- This fork: `build/v1.0-alpha-WarDriver.bin`
+- Official Beta: `/build/v1.1-beta-WarDriver.bin`
+- This pre-beta build (unstable): `build/v1.1-alpha-WarDriver.bin`
 
 Run the following command to flash the firmware to your board:
 
