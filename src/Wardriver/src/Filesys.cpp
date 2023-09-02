@@ -49,7 +49,7 @@ void Filesys::init(Filesys::ScreenUpdateCallback callback) {
     #if defined (ESP8266)
         if (!SD.begin(SD_CS)) {
             callback("SD Card: NOT FOUND");
-            ESP.wdtDisable();
+        //    ESP.wdtDisable();
             while (!SD.begin(SD_CS)) { delay(0); }
         }
         callback("SD Card: FOUND!!");
