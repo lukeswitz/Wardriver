@@ -69,9 +69,9 @@ void updateGPS() {
   mn = gps.time.minute();
   sc = gps.time.second();
 
-  sprintf(strDateTime, "%04d-%02d-%02d %02d:%02d:%02d", yr, mt, dy, hr, mn, sc);
-  sprintf(currentGPS, "%1.3f,%1.3f", lat, lng);
-  sprintf(currTime, "%02d:%02d", hr, mn);
+    sprintf(strDateTime,"%04d-%02d-%02d %02d:%02d:%02d",yr,mt,dy,hr,mn,sc);
+    sprintf(currentGPS,"%1.3f,%1.3f",lat,lng);
+    sprintf(currTime,"%02d:%02d",hr,mn);
 
   Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, "GPS: UPDATED");
 }
@@ -164,32 +164,10 @@ void scanNets() {
   //Serial.println("[ ] Scanning WiFi networks...");
   Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, "WiFi: Scanning...");
 
-  int n = WiFi.scanNetworks();
-  openNets = 0;
-
-  Filesys::open();
-
-  for (int i = 0; i < n; ++i) {
-    String ssid = WiFi.SSID(i);
-
-    if (!isSSIDSeen(ssid, ssidBuffer, ssidIndex)) {
-      ssidBuffer[ssidIndex++] = ssid;
-      if (ssidIndex == MAX_MACS) ssidIndex = 0;  // Reset index if it reaches MAX_MACS
-
-      char* authType = getAuthType(WiFi.encryptionType(i));
-      if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
-
-      //add to global vars
-      // #if defined(ESP8266)
-      //     if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
-      // #elif defined(ESP32)
-      //     if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
-      // #endif
-
-      sprintf(entry, "%s,%s,%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
-      //Serial.println(entry);
-      Filesys::write(entry);
-      newNets++;
+        sprintf(entry,"%s,\"%s\",%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), WiFi.SSID(i).c_str(),authType,strDateTime,WiFi.channel(i),WiFi.RSSI(i),lat,lng,alt,hdop);
+								
+        Serial.println(entry);
+        Filesys::write(entry);
     }
   }
   totalNets += newNets;
