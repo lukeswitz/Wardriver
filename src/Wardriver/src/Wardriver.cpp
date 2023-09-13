@@ -8,7 +8,7 @@
 #include "../Vars.h"
 #include "Filesys.h"
 
-const int MAX_MACS = 200;
+const int MAX_MACS = 50;
 
 #if defined(ESP8266)
 #include <SoftwareSerial.h>
@@ -194,8 +194,8 @@ void scanNets() {
   }
   totalNets += newNets;
 
-  //sprintf(message, "Logged %d networks.", newNets);
-  //Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
+  sprintf(message, "Logged %d networks.", newNets);
+  Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
 
   Filesys::close();
   WiFi.scanDelete();
