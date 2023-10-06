@@ -2,20 +2,30 @@
 
 [![Arduino Build](https://github.com/lukeswitz/Wardriver/actions/workflows/build.yml/badge.svg)](https://github.com/lukeswitz/Wardriver/actions/workflows/build.yml)
 
-Basic wardriving for the ESP8266 & ESP32, compatible with WiGLE. This guide will help flash the firmware to your device.
+**Basic wardriving for the ESP8266 & ESP32, compatible with WiGLE.**
 
-## V1.1 Changelog
-- [ ] Multithreading
-- [ ] ESP32 Support 
-- [ ] Internal Logging (ESP32-S2)
-- [ ] Web UI
+*This guide will help flash the firmware to your device*
 
 ## Prerequisites
-- [Official Kit](https://dnsdriveby.com) **or** 
-- ESP8266 or ESP32 
+- ESP8266 or ESP32  
 - GPS module (nearly any will work)
-- Docker and esptool
-- You can install esptool using pip: `pip install esptool` on Mac/Linux. Use the [official espressif releases](https://github.com/espressif/esptool/releases) for other operating systems. 
+- Docker and esptool:
+
+**Install Docker:**
+  
+  `sudo apt update`
+
+  `sudo apt upgrade`
+
+  `sudo apt install docker.io`
+
+  `sudo apt install docker-compose`
+
+**Install esptool**:
+  
+  - `pip install esptool` on Mac/Linux.
+
+- Use the [official espressif releases] of esptool (https://github.com/espressif/esptool/releases) for other operating systems.
 
 ## Setup
 
@@ -72,8 +82,8 @@ esptool --chip auto -p /dev/<your_serial_port> erase_flash
 
 ### Step 3: Flashing 
 Decide what image you want to flash :
-- Official Beta: `/build/v1.1-beta-WarDriver.bin`
-- This pre-beta build (unstable): `build/v1.1-alpha-WarDriver.bin`
+- Official Beta: `/build/v1.2-beta-WarDriver.bin`
+- This pre-beta build (unstable): `/build/v1.2-alpha-WarDriver.bin`
 
 Run the following command to flash the firmware to your board:
 
