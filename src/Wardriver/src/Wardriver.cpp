@@ -8,7 +8,7 @@
 #include "../Vars.h"
 #include "Filesys.h"
 
-const int MAX_MACS = 50;
+const int MAX_MACS = 150;
 
 #if defined(ESP8266)
 #include <SoftwareSerial.h>
@@ -109,27 +109,40 @@ void initGPS() {
 
   Screen::drawMockup("...", "...", sats, totalNets, openNets, clients, bat, speed, "GPS: Initializing...");
 
-  unsigned long startGPSTime = millis();
-  while (!(gps.location.isValid())) {
-    if (millis() - startGPSTime > 5000 && gps.charsProcessed() < 10) {
-      Screen::drawMockup("...", "...", sats, totalNets, openNets, clients, bat, speed, "GPS: NOT FOUND");
-    } else if (gps.charsProcessed() > 10) {
-      Screen::drawMockup("...", "...", sats, totalNets, openNets, clients, bat, speed, "GPS: Waiting for fix...");
+    unsigned long startGPSTime = millis();
+    while (! (gps.location.isValid())) {
+        if (millis()-startGPSTime > 5000 && gps.charsProcessed() < 10) {
+            Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: NOT FOUND");
+        }
+        else if (gps.charsProcessed() > 10) {
+            Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: Waiting for fix...");
+        }
+        sats = gps.satellites.value();
+        
+        Serial.println(gps.location.isValid());
+        ESP.wdtFeed(); smartDelay(500);
     }
-    sats = gps.satellites.value();
+    while (!(gps.date.year() == 2023)) {
+        Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: Validating time...");
+        ESP.wdtFeed(); smartDelay(500);
+        Serial.println(gps.date.year());
+    }
+    Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: LOCATION FOUND");
 
     Serial.println(gps.location.isValid());
     delay(0);
     smartDelay(500);
   }
-  while (!(gps.date.year() == 2023) && hdop < 30) {
-    Screen::drawMockup("...", "...", sats, totalNets, openNets, clients, bat, speed, "GPS: Calibrating...");
-    delay(0);
-    smartDelay(500);
-  }
-  Screen::drawMockup("...", "...", sats, totalNets, openNets, clients, bat, speed, "GPS: LOCATION FOUND");
+  
+    updateGPS();
+  
+//   while (!(gps.date.year() == 2023) && hdop < 30) {
+    // Screen::drawMockup("...", "...", sats, totalNets, openNets, clients, bat, speed, "GPS: Calibrating...");
+    // delay(0);
+    // smartDelay(500);
+//   }
 
-  updateGPS();
+
 }
 
 void initGPS(uint8_t override) {
@@ -208,17 +221,15 @@ void getBattery() {
 }
 
 void Wardriver::init() {
-  Screen::init();
-  Screen::drawSplash(2);
-  Filesys::init(updateScreen);
-  delay(1000);
+    Screen::init();
+    Screen::drawSplash(2);
 
-  getBattery();
-  initGPS();
-
-  char filename[23];
-  sprintf(filename, "%i-%02d-%02d", yr, mt, dy);
-  Filesys::createLog(filename, updateScreen);
+    Filesys::init(updateScreen); delay(1000);
+    getBattery();
+    initGPS();
+    
+    char filename[23]; sprintf(filename,"%i-%02d-%02d",yr, mt, dy);
+    Filesys::createLog(filename, updateScreen);
 }
 
 void Wardriver::updateScreen(char* message) {
