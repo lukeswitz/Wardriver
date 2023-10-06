@@ -2,6 +2,10 @@
 
 [![Arduino Build](https://github.com/lukeswitz/Wardriver/actions/workflows/build.yml/badge.svg)](https://github.com/lukeswitz/Wardriver/actions/workflows/build.yml)
 
+Fork Details: 
+- Duplication of networks
+- Minor fixes and updates 
+
 **Basic wardriving for the ESP8266 & ESP32, compatible with WiGLE.**
 
 *This guide will help flash the firmware to your device*
@@ -18,8 +22,6 @@
   `sudo apt upgrade`
 
   `sudo apt install docker.io`
-
-  `sudo apt install docker-compose`
 
 **Install esptool**:
   
