@@ -98,16 +98,15 @@ void updateGPS(uint8_t override) {
   Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, "GPS: UPDATED");
 }
 
-// initialize GPS & get first coords
 void initGPS() {
 
-#if defined(ESP32)
-  SERIAL_VAR.begin(GPS_BAUD, SERIAL_8N1, GPS_RX, GPS_TX);
-#elif defined(ESP8266)
-  SERIAL_VAR.begin(GPS_BAUD);
-#endif
+    #if defined(ESP32)
+        SERIAL_VAR.begin(GPS_BAUD, SERIAL_8N1, GPS_RX, GPS_TX);
+    #elif defined(ESP8266)
+        SERIAL_VAR.begin(GPS_BAUD);
+    #endif
 
-  Screen::drawMockup("...", "...", sats, totalNets, openNets, clients, bat, speed, "GPS: Initializing...");
+    Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: Initializing...");
 
     unsigned long startGPSTime = millis();
     while (! (gps.location.isValid())) {
@@ -129,20 +128,7 @@ void initGPS() {
     }
     Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: LOCATION FOUND");
 
-    Serial.println(gps.location.isValid());
-    delay(0);
-    smartDelay(500);
-  }
-  
     updateGPS();
-  
-//   while (!(gps.date.year() == 2023) && hdop < 30) {
-    // Screen::drawMockup("...", "...", sats, totalNets, openNets, clients, bat, speed, "GPS: Calibrating...");
-    // delay(0);
-    // smartDelay(500);
-//   }
-
-
 }
 
 void initGPS(uint8_t override) {
