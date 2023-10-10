@@ -1,14 +1,22 @@
-# Wardriver
-
-[![Arduino Build](https://github.com/lukeswitz/Wardriver/actions/workflows/build.yml/badge.svg)](https://github.com/lukeswitz/Wardriver/actions/workflows/build.yml)
-
-Fork Details: 
-- Duplication of networks
-- Minor fixes and updates 
+## Wardriver 1.2
 
 **Basic wardriving for the ESP8266 & ESP32, compatible with WiGLE.**
 
-*This guide will help flash the firmware to your device*
+[![Arduino Build](https://github.com/lukeswitz/Wardriver/actions/workflows/build.yml/badge.svg)](https://github.com/lukeswitz/Wardriver/actions/workflows/build.yml)
+
+**Fork Details:**
+- OTC network deduplication
+- Visibile networks cache
+- TinyFS fallback (removed) 
+- Minor fixes and fringe tweaks  
+
+**HW Cases**: 3D Print files [here](https://github.com/LyndLabs/DNS-Driveby-Hardware).  
+
+--- 
+
+## Flashing your Wardriver
+
+*This guide will help flash the firmware to your device. Open an issue if youre having trouble*
 
 ## Prerequisites
 - ESP8266 or ESP32  
