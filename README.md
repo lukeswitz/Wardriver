@@ -14,13 +14,16 @@
 
 --- 
 
-## Flashing your Wardriver
+## Flashing your Wardriver 
 
 *This guide will help flash the firmware to your device. Open an issue if you have trouble*
 
 ## Prerequisites
-- ESP8266 or ESP32  
-- GPS module (nearly any will work)
+- ESP8266/ESP32s2 & minis. 
+- Official board (optional)
+- SD module (Change Pin D8-CS in Vars.h if needed)
+- GPS unit (change GPS_BAUD in Vars.h if needed)
+
 - Docker and esptool:
 
 **Install Docker:**
@@ -100,6 +103,8 @@ Run the following command to flash the firmware to your board:
 `esptool --chip auto -p <SERIAL_PORT> write_flash -z 0x0 <binary>.bin`
 
 Replace `<binary>.bin` by dragging the file into the terminal or by manually specifying from the above paths. 
+
+*GPS output and found networks will begin to appear in the serial console after successful flash. Data is saved as a CSV file that is ready for upload to wigle.net* 
 
 ## Listing All Supported Boards
 
