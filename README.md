@@ -16,7 +16,7 @@
 
 ## Flashing your Wardriver
 
-*This guide will help flash the firmware to your device. Open an issue if youre having trouble*
+*This guide will help flash the firmware to your device. Open an issue if you have trouble*
 
 ## Prerequisites
 - ESP8266 or ESP32  
