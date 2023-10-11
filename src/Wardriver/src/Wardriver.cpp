@@ -8,8 +8,7 @@
 #include "../Vars.h"
 #include "Filesys.h"
 
-const int MAX_MACS = 150;
-
+const int MAX_MACS = 50;
 #if defined(ESP8266)
 #include <SoftwareSerial.h>
 SoftwareSerial SERIAL_VAR(GPS_RX, GPS_TX);  // RX, TX
@@ -72,8 +71,7 @@ void updateGPS() {
   sprintf(strDateTime, "%04d-%02d-%02d %02d:%02d:%02d", yr, mt, dy, hr, mn, sc);
   sprintf(currentGPS, "%1.3f,%1.3f", lat, lng);
   sprintf(currTime, "%02d:%02d", hr, mn);
-
-  Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, "GPS: UPDATED");
+  Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, "Wifi: Scanning...");
 }
 
 void updateGPS(uint8_t override) {
@@ -121,12 +119,13 @@ void initGPS() {
         Serial.println(gps.location.isValid());
         ESP.wdtFeed(); smartDelay(500);
     }
-    while (!(gps.date.year() == 2023)) {
-        Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: Validating time...");
-        ESP.wdtFeed(); smartDelay(500);
+    while (!(gps.date.year() == 2023) && hdop > 30) {
+        Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: Validating...");
+        ESP.wdtFeed(); 
+        smartDelay(500);
         Serial.println(gps.date.year());
     }
-    Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: LOCATION FOUND");
+    Screen::drawMockup("...","...",sats,totalNets,openNets,clients,bat,speed,"GPS: VALID LOCATION");
 
     updateGPS();
 }
@@ -162,7 +161,6 @@ void scanNets() {
 
   //Serial.println("[ ] Scanning WiFi networks...");
   Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, "WiFi: Scanning...");
-
   int n = WiFi.scanNetworks();
   openNets = 0;
 
@@ -176,34 +174,31 @@ void scanNets() {
       if (ssidIndex == MAX_MACS) ssidIndex = 0;  // Reset index if it reaches MAX_MACS
 
       char* authType = getAuthType(WiFi.encryptionType(i));
-      if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
 
-      //add to global vars
-      // #if defined(ESP8266)
-      //     if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
-      // #elif defined(ESP32)
-      //     if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
-      // #endif
+      #if defined(ESP8266)
+          if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
+      #elif defined(ESP32)
+          if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
+      #endif
 
       sprintf(entry, "%s,%s,%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
-      //Serial.println(entry);
+      Serial.println(entry);
       Filesys::write(entry);
       newNets++;
     }
   }
   totalNets += newNets;
-
-  sprintf(message, "Logged %d networks.", newNets);
+  sprintf(message, "Logged %d new nets...", newNets);
   Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
-
   Filesys::close();
   WiFi.scanDelete();
 }
 
 void getBattery() {
   float analogVal = analogRead(A0);
-  // bat = map(analogVal,0,100);
-  bat = 0;
+  float voltage = (analogVal / 1023.0) * 5.0; // Convert to voltage
+  bat = static_cast<uint8_t>(map(voltage, 3.7, 4.2, 0, 100)); // Map to battery level and convert to uint8_t
+  bat = constrain(bat, 0, 100); // Constrain between 0 and 100
 }
 
 void Wardriver::init() {
@@ -214,8 +209,9 @@ void Wardriver::init() {
     getBattery();
     initGPS();
     
-    char filename[23]; sprintf(filename,"%i-%02d-%02d",yr, mt, dy);
+    char filename[23]; sprintf(filename,"%04d-%02d-%02d",yr, mt, dy);
     Filesys::createLog(filename, updateScreen);
+    
 }
 
 void Wardriver::updateScreen(char* message) {
@@ -223,7 +219,8 @@ void Wardriver::updateScreen(char* message) {
 }
 
 void Wardriver::scan() {
+  getBattery();
   updateGPS();  // poll current GPS coordinates
   scanNets();   // scan WiFi nets
-  smartDelay(500);
+  smartDelay(450);
 }
