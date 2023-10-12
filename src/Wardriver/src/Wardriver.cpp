@@ -8,7 +8,7 @@
 #include "../Vars.h"
 #include "Filesys.h"
 
-const int MAX_MACS = 50;
+const int MAX_MACS = 150;
 #if defined(ESP8266)
 #include <SoftwareSerial.h>
 SoftwareSerial SERIAL_VAR(GPS_RX, GPS_TX);  // RX, TX
@@ -151,7 +151,7 @@ bool isSSIDSeen(String ssid, String ssidBuffer[], int& ssidIndex) {
 }
 
 void scanNets() {
-  char entry[150];
+  char entry[250];
   char message[21];
 
   // Buffer and index for SSIDs
@@ -180,16 +180,19 @@ void scanNets() {
       #elif defined(ESP32)
           if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
       #endif
-
+      
       sprintf(entry, "%s,%s,%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
       Serial.println(entry);
       Filesys::write(entry);
+      
       newNets++;
     }
   }
   totalNets += newNets;
+  
   sprintf(message, "Logged %d new nets...", newNets);
   Screen::drawMockup(currentGPS, currTime, sats, totalNets, openNets, clients, bat, speed, message);
+  
   Filesys::close();
   WiFi.scanDelete();
 }
@@ -209,7 +212,7 @@ void Wardriver::init() {
     getBattery();
     initGPS();
     
-    char filename[23]; sprintf(filename,"%04d-%02d-%02d",yr, mt, dy);
+    char filename[23]; sprintf(filename,"%i-%02d-%02d",yr, mt, dy);
     Filesys::createLog(filename, updateScreen);
     
 }
@@ -222,5 +225,5 @@ void Wardriver::scan() {
   getBattery();
   updateGPS();  // poll current GPS coordinates
   scanNets();   // scan WiFi nets
-  smartDelay(450);
+  smartDelay(500);
 }
