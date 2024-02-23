@@ -36,7 +36,7 @@ uint8_t speed = 0;
 // DYNAMIC SCAN VARS
 const int popularChannels[] = { 1, 6, 11 };
 const int standardChannels[] = { 2, 3, 4, 5, 7, 8, 9, 10 };
-int timePerChannel[14] = { 300, 100, 100, 100, 100, 300, 100, 100, 100, 100, 300, 100, 100, 100 };
+int timePerChannel[14] = { 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 50, 50, 50 };
 
 // DASH ICONS
 char satsC[4] = "...";
@@ -89,6 +89,9 @@ bool isSSIDSeen(String ssid, String ssidBuffer[], int& ssidIndex) {
       return true;
     }
   }
+  if (ssidIndex < MAX_MACS) {
+    ssidBuffer[ssidIndex++] = ssid;
+  }
   return false;
 }
 
@@ -103,9 +106,9 @@ bool findInArray(int value, const int* array, int size) {
 void updateTimePerChannel(int channel, int networksFound) {
   const int FEW_NETWORKS_THRESHOLD = 1;
   const int MANY_NETWORKS_THRESHOLD = 5;
-  const int POPULAR_TIME_INCREMENT = 100;   // Higher increment for popular channels
-  const int STANDARD_TIME_INCREMENT = 50;  // Standard increment
-  const int MAX_TIME = 500;
+  const int POPULAR_TIME_INCREMENT = 50;   // Higher increment for popular channels
+  const int STANDARD_TIME_INCREMENT = 100;  // Standard increment
+  const int MAX_TIME = 400;
   const int MIN_TIME = 50;
 
   int timeIncrement;
@@ -271,7 +274,6 @@ void initGPS(uint8_t override) {
 }
 
 void scanNets() {
-  // Buffer and index for SSIDs
   static String ssidBuffer[MAX_MACS];
   static int ssidIndex = 0;
 
@@ -281,38 +283,31 @@ void scanNets() {
   Screen::update();
 
   Filesys::open();
-  int numNets = 0;  // Reset at each scan call
+  int numNets = 0; // Reset at the start of each scan call to count unique networks this scan.
 
   auto processNetworks = [&](int networksFound) {
     for (int i = 0; i < networksFound; i++) {
-      if (Filesys::dedupe) {
-        String ssid = WiFi.SSID(i);
-        if (isSSIDSeen(ssid, ssidBuffer, ssidIndex)) {
-          continue;
-        }
-      }
-      char* authType = getAuthType(WiFi.encryptionType(i));
+      String ssid = WiFi.SSID(i);
+      if (!Filesys::dedupe || !isSSIDSeen(ssid, ssidBuffer, ssidIndex)) { // Process only if SSID not seen or dedupe is off.
+        char* authType = getAuthType(WiFi.encryptionType(i));
 #if defined(ESP8266)
-      if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
+        if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
 #elif defined(ESP32)
-      if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
+        if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
 #endif
 
-      sprintf(entry, "%s,\"%s\",%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), WiFi.SSID(i).c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
+        sprintf(entry, "%s,\"%s\",%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
 
-      Serial.println(entry);
-      Filesys::write(entry);
-      totalNets++;
-      numNets++;
-
-      if (Filesys::dedupe && ssidIndex < MAX_MACS) {
-        ssidBuffer[ssidIndex++] = WiFi.SSID(i);
+        Serial.println(entry);
+        Filesys::write(entry);
+        totalNets++; // Increment only for unique SSIDs.
+        numNets++; // Counting unique networks found in this scan.
       }
     }
   };
 
   if (Filesys::dynamicScan) {
-    for (int channel = 1; channel <= 11; channel++) {
+    for (int channel = 1; channel <= 14; channel++) {
       int networksOnChannel = WiFi.scanNetworks(false, Filesys::showHidden, false, timePerChannel[channel - 1], channel);
       processNetworks(networksOnChannel);
       updateTimePerChannel(channel, networksOnChannel);
@@ -330,6 +325,7 @@ void scanNets() {
   Filesys::close();
   WiFi.scanDelete();
 }
+
 
 
 void Wardriver::init() {
@@ -367,5 +363,5 @@ void Wardriver::scan() {
   updateGPS();  // poll current GPS coordinates
   // getBattery();
   scanNets();  // scan WiFi nets
-  smartDelay(500);
+  smartDelay(750);
 }
