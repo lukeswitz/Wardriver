@@ -89,8 +89,15 @@ bool isSSIDSeen(String ssid, String ssidBuffer[], int& ssidIndex) {
       return true;
     }
   }
-  if (ssidIndex < MAX_MACS) {
-    ssidBuffer[ssidIndex++] = ssid;
+  // Add the new SSID to the buffer
+  ssidBuffer[ssidIndex++] = ssid;
+
+  // Reset the array and index if the maximum capacity is reached
+  if (ssidIndex >= MAX_MACS) {
+    ssidIndex = 0; // Reset index to 0 to start over
+    for (int i = 0; i < MAX_MACS; i++) {
+      ssidBuffer[i] = ""; // Clearing the array
+    }
   }
   return false;
 }
@@ -106,31 +113,15 @@ bool findInArray(int value, const int* array, int size) {
 void updateTimePerChannel(int channel, int networksFound) {
   const int FEW_NETWORKS_THRESHOLD = 1;
   const int MANY_NETWORKS_THRESHOLD = 5;
-  const int POPULAR_TIME_INCREMENT = 50;   // Higher increment for popular channels
-  const int STANDARD_TIME_INCREMENT = 100;  // Standard increment
+  const int TIME_INCREMENT = 50;
   const int MAX_TIME = 400;
-  const int MIN_TIME = 50;
+  const int MIN_TIME = 100;
 
-  int timeIncrement;
-
-  // Determine the time increment based on channel type
-  if (findInArray(channel, popularChannels, sizeof(popularChannels) / sizeof(popularChannels[0]))) {
-    timeIncrement = POPULAR_TIME_INCREMENT;
-  } else {
-    timeIncrement = STANDARD_TIME_INCREMENT;
-  }
-
-  // Adjust the time per channel based on the number of networks found
+  // Adjust time based on the number of networks found
   if (networksFound >= MANY_NETWORKS_THRESHOLD) {
-    timePerChannel[channel - 1] += timeIncrement;
-    if (timePerChannel[channel - 1] > MAX_TIME) {
-      timePerChannel[channel - 1] = MAX_TIME;
-    }
+    timePerChannel[channel - 1] = min(timePerChannel[channel - 1] + TIME_INCREMENT, MAX_TIME);
   } else if (networksFound <= FEW_NETWORKS_THRESHOLD) {
-    timePerChannel[channel - 1] -= timeIncrement;
-    if (timePerChannel[channel - 1] < MIN_TIME) {
-      timePerChannel[channel - 1] = MIN_TIME;
-    }
+    timePerChannel[channel - 1] = max(timePerChannel[channel - 1] - TIME_INCREMENT, MIN_TIME);
   }
 }
 
