@@ -36,7 +36,7 @@ uint8_t speed = 0;
 // DYNAMIC SCAN VARS
 const int popularChannels[] = { 1, 6, 11 };
 const int standardChannels[] = { 2, 3, 4, 5, 7, 8, 9, 10 };
-int timePerChannel[14] = { 300, 100, 100, 100, 100, 300, 100, 100, 100, 100, 300, 100, 100, 100 };
+int timePerChannel[14] = { 300, 200, 200, 200, 200, 300, 200, 200, 200, 200, 300, 50, 50, 50 };
 
 // DASH ICONS
 char satsC[4] = "...";
@@ -103,28 +103,18 @@ bool findInArray(int value, const int* array, int size) {
 void updateTimePerChannel(int channel, int networksFound) {
   const int FEW_NETWORKS_THRESHOLD = 1;
   const int MANY_NETWORKS_THRESHOLD = 5;
-  const int POPULAR_TIME_INCREMENT = 100;   // Higher increment for popular channels
-  const int STANDARD_TIME_INCREMENT = 50;  // Standard increment
-  const int MAX_TIME = 500;
-  const int MIN_TIME = 50;
-
-  int timeIncrement;
-
-  // Determine the time increment based on channel type
-  if (findInArray(channel, popularChannels, sizeof(popularChannels) / sizeof(popularChannels[0]))) {
-    timeIncrement = POPULAR_TIME_INCREMENT;
-  } else {
-    timeIncrement = STANDARD_TIME_INCREMENT;
-  }
+  const int TIME_INCREMENT = 100;   // Higher increment for popular channels
+  const int MAX_TIME = 400;
+  const int MIN_TIME = 100;
 
   // Adjust the time per channel based on the number of networks found
   if (networksFound >= MANY_NETWORKS_THRESHOLD) {
-    timePerChannel[channel - 1] += timeIncrement;
+    timePerChannel[channel - 1] += TIME_INCREMENT;
     if (timePerChannel[channel - 1] > MAX_TIME) {
       timePerChannel[channel - 1] = MAX_TIME;
     }
   } else if (networksFound <= FEW_NETWORKS_THRESHOLD) {
-    timePerChannel[channel - 1] -= timeIncrement;
+    timePerChannel[channel - 1] -= TIME_INCREMENT;
     if (timePerChannel[channel - 1] < MIN_TIME) {
       timePerChannel[channel - 1] = MIN_TIME;
     }
@@ -286,9 +276,16 @@ void scanNets() {
   auto processNetworks = [&](int networksFound) {
     for (int i = 0; i < networksFound; i++) {
       if (Filesys::dedupe) {
+        if (ssidIndex >= MAX_MACS) {
+          // Reset the ssidIndex to 0 when MAX_MACS is reached to start overwriting old entries
+          ssidIndex = 0; // Reset the index to reuse the buffer from the start
+        }
         String ssid = WiFi.SSID(i);
         if (isSSIDSeen(ssid, ssidBuffer, ssidIndex)) {
-          continue;
+          continue; // Skip adding this SSID if it has already been seen
+        } else {
+          // Add new SSID to the buffer
+          ssidBuffer[ssidIndex++] = ssid;
         }
       }
       char* authType = getAuthType(WiFi.encryptionType(i));
@@ -304,10 +301,7 @@ void scanNets() {
       Filesys::write(entry);
       totalNets++;
       numNets++;
-
-      if (Filesys::dedupe && ssidIndex < MAX_MACS) {
-        ssidBuffer[ssidIndex++] = WiFi.SSID(i);
-      }
+      ssidIndex++;
     }
   };
 
@@ -367,5 +361,5 @@ void Wardriver::scan() {
   updateGPS();  // poll current GPS coordinates
   // getBattery();
   scanNets();  // scan WiFi nets
-  smartDelay(500);
+  smartDelay(700);
 }
