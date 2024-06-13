@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM debian:bookworm-20240130
+FROM debian:bookworm-20240211
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
