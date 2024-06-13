@@ -16,7 +16,13 @@ SoftwareSerial SERIAL_VAR(GPS_RX, GPS_TX);  // RX, TX
 
 TinyGPSPlus gps;
 
-// CURRENT GPS & DATTIME STRING
+// SD Config
+bool sdDedupe;
+bool sdDynamicScan;
+bool sdShowHidden;
+int sdTimePerChan;
+
+// CURRENT GPS & DATETIME STRING
 float lat = 0;
 float lng = 0;
 int alt;
@@ -57,21 +63,15 @@ char currTime[10] = "...";
 
 char* test[6] = { satsC, totalC, openNetsC, tmpC, batC, speedC };
 
-Wardriver::Wardriver() {
-}
+Wardriver::Wardriver() {}
 
 uint8_t getBattery() {
-  // float analogVal = analogRead(A0);
-  // bat = map(analogVal,0,100);
-  // bat = 0;
   return 0;
 }
 
 uint8_t getTemp() {
-  //   Serial.print("Temperature: ");
   float result = 0;
   temp_sensor_read_celsius(&result);
-
   return (int)result;
 }
 
@@ -83,21 +83,14 @@ static void smartDelay(unsigned long ms) {
   } while (millis() - start < ms);
 }
 
-bool isSSIDSeen(String ssid, String ssidBuffer[], int& ssidIndex) {
-  for (int j = 0; j < ssidIndex; j++) {
-    if (ssidBuffer[j] == ssid) {
+bool isMACSeen(const char* mac, char seenMACs[][20], int& macCount) {
+  for (int i = 0; i < macCount; i++) {
+    if (strcmp(seenMACs[i], mac) == 0) {
       return true;
     }
   }
-  // Add the new SSID to the buffer
-  ssidBuffer[ssidIndex++] = ssid;
-
-  // Reset the array and index if the maximum capacity is reached
-  if (ssidIndex >= MAX_MACS) {
-    ssidIndex = 0; // Reset index to 0 to start over
-    for (int i = 0; i < MAX_MACS; i++) {
-      ssidBuffer[i] = ""; // Clearing the array
-    }
+  if (macCount < MAX_MACS) {
+    strcpy(seenMACs[macCount++], mac);
   }
   return false;
 }
@@ -109,19 +102,35 @@ bool findInArray(int value, const int* array, int size) {
   return false;
 }
 
-// TESTING: dynamic scan
+// Dynamic scan
 void updateTimePerChannel(int channel, int networksFound) {
   const int FEW_NETWORKS_THRESHOLD = 1;
   const int MANY_NETWORKS_THRESHOLD = 5;
-  const int TIME_INCREMENT = 50;
+  const int POPULAR_TIME_INCREMENT = 50;    // Higher increment for popular channels
+  const int STANDARD_TIME_INCREMENT = 100;  // Standard increment
   const int MAX_TIME = 400;
-  const int MIN_TIME = 100;
+  const int MIN_TIME = 50;
 
-  // Adjust time based on the number of networks found
+  int timeIncrement;
+
+  // Determine the time increment based on channel type
+  if (findInArray(channel, popularChannels, sizeof(popularChannels) / sizeof(popularChannels[0]))) {
+    timeIncrement = POPULAR_TIME_INCREMENT;
+  } else {
+    timeIncrement = STANDARD_TIME_INCREMENT;
+  }
+
+  // Adjust the time per channel based on the number of networks found
   if (networksFound >= MANY_NETWORKS_THRESHOLD) {
-    timePerChannel[channel - 1] = min(timePerChannel[channel - 1] + TIME_INCREMENT, MAX_TIME);
+    timePerChannel[channel - 1] += timeIncrement;
+    if (timePerChannel[channel - 1] > MAX_TIME) {
+      timePerChannel[channel - 1] = MAX_TIME;
+    }
   } else if (networksFound <= FEW_NETWORKS_THRESHOLD) {
-    timePerChannel[channel - 1] = max(timePerChannel[channel - 1] - TIME_INCREMENT, MIN_TIME);
+    timePerChannel[channel - 1] -= timeIncrement;
+    if (timePerChannel[channel - 1] < MIN_TIME) {
+      timePerChannel[channel - 1] = MIN_TIME;
+    }
   }
 }
 
@@ -147,9 +156,7 @@ void updateGPS() {
   sprintf(satsC, "%u", sats);
 
   if (totalNets > 999) {
-    // sprintf(totalC,"%uK",((totalNets-1)/1000));
     sprintf(totalC, "%gK", ((totalNets) / 100) / 10.0);
-    // Serial.println(((totalNets-1)/100)/10.0);
   } else {
     sprintf(totalC, "%u", totalNets);
   }
@@ -186,9 +193,7 @@ void updateGPS(uint8_t override) {
   sprintf(satsC, "%u", sats);
 
   if (totalNets - 1 > 999) {
-    // sprintf(totalC,"%uK",((totalNets-1)/1000));
     sprintf(totalC, "%gK", ((totalNets - 1) / 100) / 10.0);
-    // Serial.println(((totalNets-1)/100)/10.0);
   } else {
     sprintf(totalC, "%u", totalNets - 1);
   }
@@ -200,59 +205,42 @@ void updateGPS(uint8_t override) {
 
   Screen::setFooter("GPS: UPDATED");
   Screen::update();
-  // Screen::drawMockup("...","...",0,0,0,0,0,0,"test");
 }
 
-// initialize GPS & get first coords
 void initGPS() {
-
 #if defined(ESP32)
   SERIAL_VAR.begin(GPS_BAUD, SERIAL_8N1, GPS_RX, GPS_TX);
 #elif defined(ESP8266)
   SERIAL_VAR.begin(GPS_BAUD);
 #endif
 
-  // char *test[6] = {"1","2","3","23","5","6"};
-  // Screen::setIcons(icons_bits, test, 6);
-  // Screen::setHeader(currentGPS,currTime);   // pass ref
-  Screen::setFooter("GPS Initializing...");  //
+  Screen::setFooter("GPS Initializing...");
   Screen::update();
 
   unsigned long startGPSTime = millis();
 
   while (!(gps.location.isValid())) {
-
     if (millis() - startGPSTime > 5000 && gps.charsProcessed() < 10) {
       Screen::setFooter("GPS: NOT FOUND");
       Screen::update();
-
-    } else if (gps.charsProcessed() > 10) {
-      Screen::setFooter("GPS: Waiting for fix...");
-      Screen::update();
+      sats = gps.satellites.value();
+      Serial.println(gps.location.isValid());
+      yield();
+      smartDelay(500);
     }
-
-    sats = gps.satellites.value();
-    // totalNets = 0;
-    Serial.println(gps.location.isValid());
-    //ESP.wdtFeed();
-    yield();
-
-    smartDelay(500);
+    while ((gps.date.year() == 2000)) {
+      Screen::setFooter("GPS: Validating time...");
+      yield();
+      smartDelay(500);
+      Serial.println(gps.date.year());
+    }
+    Screen::setFooter("GPS: LOCATION FOUND");
+    updateGPS();
   }
-  while ((gps.date.year() == 2000)) {
-    Screen::setFooter("GPS: Validating time...");
-    //ESP.wdtFeed();
-    yield();
-    smartDelay(500);
-    Serial.println(gps.date.year());
-  }
-  Screen::setFooter("GPS: LOCATION FOUND");
-  updateGPS();
 }
 
 void initGPS(uint8_t override) {
 #if defined(ESP32)
-  // SERIAL_VAR.begin(GPS_BAUD, SERIAL_8N1, GPS_RX, GPS_TX);
 #endif
   Screen::setFooter("GPS: Emulating fix");
   Screen::update();
@@ -265,8 +253,8 @@ void initGPS(uint8_t override) {
 }
 
 void scanNets() {
-  static String ssidBuffer[MAX_MACS];
-  static int ssidIndex = 0;
+  static char seenMACs[MAX_MACS][20];
+  static int macCount = 0;
 
   char entry[250];
   Serial.println("[ ] Scanning WiFi networks...");
@@ -274,42 +262,39 @@ void scanNets() {
   Screen::update();
 
   Filesys::open();
-  int numNets = 0; // Reset at the start of each scan call to count unique networks this scan.
+  int numNets = 0;  // Reset at the start of each scan call to count unique networks this scan.
 
   auto processNetworks = [&](int networksFound) {
     for (int i = 0; i < networksFound; i++) {
-      String ssid = WiFi.SSID(i);
-      if (!Filesys::dedupe || !isSSIDSeen(ssid, ssidBuffer, ssidIndex)) { // Process only if SSID not seen or dedupe is off.
-        char* authType = getAuthType(WiFi.encryptionType(i));
-#if defined(ESP8266)
-        if (WiFi.encryptionType(i) == ENC_TYPE_NONE) openNets++;
-#elif defined(ESP32)
+      const char* mac = WiFi.BSSIDstr(i).c_str();
+      if (!isMACSeen(mac, seenMACs, macCount)) {  // Process only if MAC not seen.
+        const char* authType = getAuthType(WiFi.encryptionType(i));
+
         if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) openNets++;
-#endif
 
-        sprintf(entry, "%s,\"%s\",%s,%s,%u,%i,%f,%f,%i,%f,WIFI", WiFi.BSSIDstr(i).c_str(), ssid.c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
+        sprintf(entry, "%s,\"%s\",%s,%s,%u,%i,%f,%f,%i,%f,WIFI", mac, WiFi.SSID(i).c_str(), authType, strDateTime, WiFi.channel(i), WiFi.RSSI(i), lat, lng, alt, hdop);
 
-        Serial.println(entry);
+        // Serial.println(entry);
         Filesys::write(entry);
-        totalNets++; // Increment only for unique SSIDs.
-        numNets++; // Counting unique networks found in this scan.
+        totalNets++;  // Increment only for unique SSIDs.
+        numNets++;    // Counting unique networks found in this scan.
       }
     }
   };
 
-  if (Filesys::dynamicScan) {
-    for (int channel = 1; channel <= 14; channel++) {
-      int networksOnChannel = WiFi.scanNetworks(false, Filesys::showHidden, false, timePerChannel[channel - 1], channel);
+  if (sdDynamicScan) {
+    for (int channel = 1; channel <= 11; channel++) {
+      int networksOnChannel = WiFi.scanNetworks(false, sdTimePerChan, false, timePerChannel[channel - 1], channel);
       processNetworks(networksOnChannel);
       updateTimePerChannel(channel, networksOnChannel);
     }
   } else {
-    int networksFound = WiFi.scanNetworks(false, Filesys::showHidden, false, Filesys::timePerChan);
+    int networksFound = WiFi.scanNetworks(false, sdShowHidden, false, sdTimePerChan);
     processNetworks(networksFound);
   }
 
   char message[30];
-  sprintf(message, "Logged %d Networks", numNets);
+  sprintf(message, "Logged %d New Networks", numNets);
   Screen::setFooter(message);
   Screen::update();
 
@@ -317,9 +302,11 @@ void scanNets() {
   WiFi.scanDelete();
 }
 
-
-
 void Wardriver::init() {
+  sdDedupe = Filesys::dedupe;
+  sdDynamicScan = Filesys::dynamicScan;
+  sdShowHidden = Filesys::showHidden;
+  sdTimePerChan = Filesys::timePerChan;
 
   totalNets = 0;
   temp_sensor_config_t temp_sensor = TSENS_CONFIG_DEFAULT();
@@ -334,8 +321,6 @@ void Wardriver::init() {
 
   Filesys::init(updateScreen);
   delay(1000);
-
-  // getBattery();
 
   initGPS();
   char fileDT[150];
@@ -352,7 +337,6 @@ void Wardriver::updateScreen(char* message) {
 void Wardriver::scan() {
   Serial.println("In scan.");
   updateGPS();  // poll current GPS coordinates
-  // getBattery();
-  scanNets();  // scan WiFi nets
-  smartDelay(750);
+  scanNets();   // scan WiFi nets
+  smartDelay(150);
 }
