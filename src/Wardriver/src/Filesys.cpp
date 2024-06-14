@@ -15,7 +15,7 @@ int Filesys::timePerChan = 250;
 /* FatFS logging or SD Card*/
 #include <SD.h>
 
-char fullFilename[100];
+char fullFilename[120];
 File file;
 
 Filesys::Filesys() {

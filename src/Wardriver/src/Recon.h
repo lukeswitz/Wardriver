@@ -6,8 +6,7 @@
     #include "WiFi.h"
 #endif
 
-char* getAuthType(uint8_t wifiAuth) {
-    static char authType[15];
+const char* getAuthType(uint8_t wifiAuth) {
     switch (wifiAuth) {
 
         #if defined(ESP8266)
@@ -32,15 +31,12 @@ char* getAuthType(uint8_t wifiAuth) {
             case WIFI_AUTH_WPA2_PSK:
                 return "[WPA2]";
             case WIFI_AUTH_WPA_WPA2_PSK:
-                // return "WPA+WPA2";
                 return "[WPA2]";
             case WIFI_AUTH_WPA2_ENTERPRISE:
-                // return "WPA2-EAP";
                 return "[WPA2]";
             case WIFI_AUTH_WPA3_PSK:
                 return "[WPA3]";
             case WIFI_AUTH_WPA2_WPA3_PSK:
-                // return "WPA2+WPA3";
                 return "[WPA3]";
             case WIFI_AUTH_WAPI_PSK:
                 return "[WAPI]";
@@ -49,5 +45,4 @@ char* getAuthType(uint8_t wifiAuth) {
         default:
             return "[UNKNOWN]";
     }
-    return authType;
 }

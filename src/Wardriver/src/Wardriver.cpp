@@ -167,45 +167,11 @@ void updateGPS() {
   sprintf(batC, "%u", getBattery());
   sprintf(speedC, "%u", speed);
 
-  Screen::setFooter("GPS: UPDATED");
+  //Screen::setFooter("GPS: UPDATED");
   Screen::update();
 }
 
-void updateGPS(uint8_t override) {
-  lat = 37.8715;
-  lng = 122.2730;
-  alt = 220;
-  hdop = 1.5;
-  sats = 3;
-  speed = 69;
 
-  yr = 2023;
-  mt = 7;
-  dy = 25;
-  hr = 10;
-  mn = 36;
-  sc = 56;
-
-  sprintf(strDateTime, "%i-%i-%i %i:%i:%i", yr, mt, dy, hr, mn, sc);
-  sprintf(currentGPS, "%1.3f,%1.3f", lat, lng);
-  sprintf(currTime, "%02d:%02d", hr, mn);
-
-  sprintf(satsC, "%u", sats);
-
-  if (totalNets - 1 > 999) {
-    sprintf(totalC, "%gK", ((totalNets - 1) / 100) / 10.0);
-  } else {
-    sprintf(totalC, "%u", totalNets - 1);
-  }
-
-  sprintf(openNetsC, "%u", openNets);
-  sprintf(tmpC, "%u°", getTemp());
-  sprintf(batC, "%u%", getBattery());
-  sprintf(speedC, "%u", speed);
-
-  Screen::setFooter("GPS: UPDATED");
-  Screen::update();
-}
 
 void initGPS() {
 #if defined(ESP32)
@@ -218,9 +184,10 @@ void initGPS() {
   Screen::update();
 
   unsigned long startGPSTime = millis();
+  bool gpsFound = false;
 
-  while (!(gps.location.isValid())) {
-    if (millis() - startGPSTime > 5000 && gps.charsProcessed() < 10) {
+  while (!gpsFound) {
+    if (millis() - startGPSTime > 10000 && gps.charsProcessed() < 10) {
       Screen::setFooter("GPS: NOT FOUND");
       Screen::update();
       sats = gps.satellites.value();
@@ -228,29 +195,21 @@ void initGPS() {
       yield();
       smartDelay(500);
     }
-    while ((gps.date.year() == 2000)) {
+
+    if (gps.location.isValid()) {
+      gpsFound = true;
+      Screen::setFooter("GPS: LOCATION FOUND");
+      updateGPS();
+    } else {
       Screen::setFooter("GPS: Validating time...");
       yield();
       smartDelay(500);
+      Serial.print("Year: ");
       Serial.println(gps.date.year());
     }
-    Screen::setFooter("GPS: LOCATION FOUND");
-    updateGPS();
   }
 }
 
-void initGPS(uint8_t override) {
-#if defined(ESP32)
-#endif
-  Screen::setFooter("GPS: Emulating fix");
-  Screen::update();
-  delay(500);
-
-  updateGPS(0);
-  Screen::setFooter("GPS: LOCATION FOUND");
-  Screen::update();
-  Serial.println("Screen updated.");
-}
 
 void scanNets() {
   static char seenMACs[MAX_MACS][20];
